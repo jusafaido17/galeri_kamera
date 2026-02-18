@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -29,8 +28,7 @@ class DashboardController extends Controller
               ->whereNotNull('proof_image');
         })->count();
 
-        // Revenue bulan ini
-        // Laravel otomatis menangani whereMonth/whereYear untuk PostgreSQL
+        // Revenue bulan ini (Gunakan whereMonth & whereYear yang kompatibel)
         $monthlyRevenue = Order::whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->whereIn('status', ['confirmed', 'processing', 'completed'])
@@ -47,15 +45,18 @@ class DashboardController extends Controller
             ->where('is_available', true)
             ->get();
 
-        // Chart: Orders per bulan (6 bulan terakhir)
-        // PERBAIKAN: Menggunakan EXTRACT(MONTH FROM ...) untuk PostgreSQL
+        /**
+         * FIX UNTUK POSTGRESQL (NEON):
+         * PostgreSQL tidak mendukung fungsi MONTH() secara langsung seperti MySQL.
+         * Kita gunakan EXTRACT(MONTH FROM ...) agar chart tidak error 500.
+         */
         $ordersChart = Order::select(
-                DB::raw("CAST(EXTRACT(MONTH FROM created_at) AS INTEGER) as month"),
+                DB::raw("EXTRACT(MONTH FROM created_at) as month"),
                 DB::raw('COUNT(*) as total')
             )
             ->where('created_at', '>=', now()->subMonths(6))
-            ->groupBy(DB::raw("EXTRACT(MONTH FROM created_at)"))
-            ->orderBy('month')
+            ->groupBy(DB::raw("EXTRACT(MONTH FROM created_at)")) // Wajib dikelompokkan dengan fungsi yang sama
+            ->orderBy(DB::raw("EXTRACT(MONTH FROM created_at)"))
             ->get();
 
         return view('admin.dashboard', compact(

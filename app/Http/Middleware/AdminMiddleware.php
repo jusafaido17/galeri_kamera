@@ -11,19 +11,27 @@ class AdminMiddleware
 {
     /**
      * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Cek apakah user sudah login
+        // 1. Cek apakah user sudah login
         if (!Auth::check()) {
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu');
         }
 
-        // Cek apakah user adalah admin
-        if (!Auth::user()->isAdmin()) {
+        /** * 2. Cek apakah user adalah admin.
+         * Gunakan pengecekan kolom 'role' secara langsung jika fungsi isAdmin() belum ada.
+         */
+        if (Auth::user()->role !== 'admin') { 
             return redirect()->route('home')->with('error', 'Anda tidak memiliki akses ke halaman ini');
+        }
+
+        /**
+         * 3. Keamanan Tambahan: Memastikan request sensitif di admin 
+         * tetap menggunakan HTTPS di lingkungan produksi.
+         */
+        if (app()->environment('production') && !$request->secure()) {
+            return redirect()->secure($request->getRequestUri());
         }
 
         return $next($request);
