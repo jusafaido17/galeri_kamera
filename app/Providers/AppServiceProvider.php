@@ -5,22 +5,22 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\URL; // 👈 TAMBAHKAN INI
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
+        // 👇 FORCE HTTPS DI PRODUCTION
+        if (app()->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         // Share cart count to all views
         view()->composer('*', function ($view) {
             $cartCount = 0;
