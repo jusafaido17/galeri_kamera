@@ -29,7 +29,7 @@ class DashboardController extends Controller
               ->whereNotNull('proof_image');
         })->count();
 
-        // Revenue bulan ini
+        // Revenue bulan ini (Laravel akan otomatis menangani translasi whereMonth ke PostgreSQL)
         $monthlyRevenue = Order::whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->whereIn('status', ['confirmed', 'processing', 'completed'])
@@ -47,12 +47,13 @@ class DashboardController extends Controller
             ->get();
 
         // Chart: Orders per bulan (6 bulan terakhir)
+        // PERBAIKAN: Menggunakan EXTRACT agar kompatibel dengan PostgreSQL/Neon
         $ordersChart = Order::select(
-                DB::raw('MONTH(created_at) as month'),
+                DB::raw("EXTRACT(MONTH FROM created_at) as month"),
                 DB::raw('COUNT(*) as total')
             )
             ->where('created_at', '>=', now()->subMonths(6))
-            ->groupBy('month')
+            ->groupBy(DB::raw("EXTRACT(MONTH FROM created_at)"))
             ->orderBy('month')
             ->get();
 
