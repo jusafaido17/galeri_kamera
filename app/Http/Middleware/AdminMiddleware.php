@@ -19,20 +19,20 @@ class AdminMiddleware
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu');
         }
 
-        /** * 2. Cek apakah user adalah admin.
-         * Gunakan pengecekan kolom 'role' secara langsung jika fungsi isAdmin() belum ada.
+        /**
+         * 2. Cek apakah user adalah admin.
+         * Menggunakan pengecekan kolom 'role' secara langsung lebih aman 
+         * daripada memanggil fungsi isAdmin() jika belum didefinisikan di Model.
          */
         if (Auth::user()->role !== 'admin') { 
             return redirect()->route('home')->with('error', 'Anda tidak memiliki akses ke halaman ini');
         }
 
         /**
-         * 3. Keamanan Tambahan: Memastikan request sensitif di admin 
-         * tetap menggunakan HTTPS di lingkungan produksi.
+         * PENTING: Jangan tambahkan redirect->secure() di sini.
+         * Redirect ke HTTPS sudah ditangani oleh TrustProxies dan AppServiceProvider.
+         * Menambahkannya di sini akan menyebabkan ERR_TOO_MANY_REDIRECTS.
          */
-        if (app()->environment('production') && !$request->secure()) {
-            return redirect()->secure($request->getRequestUri());
-        }
 
         return $next($request);
     }
