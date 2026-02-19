@@ -13,9 +13,22 @@ class ProductController extends Controller
     {
         $query = Product::with('category')->where('is_available', true);
 
-        // Filter berdasarkan kategori
-        if ($request->has('category') && $request->category) {
-            $query->where('category_id', $request->category);
+        /**
+         * PERBAIKAN: Menangani filter kategori agar tidak error "bigint"
+         * Mendukung ID (angka) atau Slug (tulisan seperti 'dslr-camera')
+         */
+        if ($request->filled('category')) {
+            $categoryParam = $request->category;
+
+            $query->where(function($q) use ($categoryParam) {
+                if (is_numeric($categoryParam)) {
+                    $q->where('category_id', $categoryParam);
+                } else {
+                    $q->whereHas('category', function($sq) use ($categoryParam) {
+                        $sq->where('slug', $categoryParam);
+                    });
+                }
+            });
         }
 
         // Filter berdasarkan search
@@ -42,6 +55,7 @@ class ProductController extends Controller
             $query->latest();
         }
 
+        // Eksekusi pagination (Sekarang aman dari error baris 45)
         $products = $query->paginate(12);
         $categories = Category::withCount('products')->get();
 
@@ -66,7 +80,7 @@ class ProductController extends Controller
         return view('products.show', compact('product', 'relatedProducts', 'bookings'));
     }
 
-    // Menampilkan produk berdasarkan kategori
+    // Menampilkan produk berdasarkan kategori (Shortcut URL)
     public function category($slug)
     {
         $category = Category::where('slug', $slug)->firstOrFail();
@@ -90,10 +104,8 @@ class ProductController extends Controller
         $startDate = now()->startOfDay();
         $endDate = now()->addDays($days)->endOfDay();
 
-        // Ambil semua order items untuk produk ini dalam range waktu
         $orderItems = \App\Models\OrderItem::where('product_id', $productId)
             ->whereHas('order', function($query) {
-                // Hanya order yang confirmed, processing, atau completed
                 $query->whereIn('status', ['confirmed', 'processing', 'completed']);
             })
             ->where(function($query) use ($startDate, $endDate) {
@@ -107,13 +119,11 @@ class ProductController extends Controller
             ->with('order')
             ->get();
 
-        // Format untuk kalender
         $bookings = [];
         foreach ($orderItems as $item) {
             $start = \Carbon\Carbon::parse($item->rental_start);
             $end = \Carbon\Carbon::parse($item->rental_end);
 
-            // Loop setiap hari dari rental_start sampai rental_end
             $current = $start->copy()->startOfDay();
             $endDay = $end->copy()->startOfDay();
 
@@ -158,7 +168,6 @@ class ProductController extends Controller
             $product = Product::findOrFail($request->product_id);
             $date = \Carbon\Carbon::parse($request->date)->startOfDay();
 
-            // Cek booking di tanggal tersebut
             $bookedQuantity = \App\Models\OrderItem::where('product_id', $product->id)
                 ->whereHas('order', function($query) {
                     $query->whereIn('status', ['confirmed', 'processing', 'completed']);

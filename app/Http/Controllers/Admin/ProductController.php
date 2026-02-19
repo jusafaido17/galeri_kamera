@@ -21,9 +21,24 @@ class ProductController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
 
-        // Filter category
-        if ($request->has('category') && $request->category) {
-            $query->where('category_id', $request->category);
+        /**
+         * PERBAIKAN: Menangani input category ID atau Slug
+         * Mencegah error "Invalid text representation for type bigint"
+         */
+        if ($request->filled('category')) {
+            $categoryParam = $request->category;
+
+            $query->where(function($q) use ($categoryParam) {
+                if (is_numeric($categoryParam)) {
+                    // Jika input berupa angka ID
+                    $q->where('category_id', $categoryParam);
+                } else {
+                    // Jika input berupa tulisan Slug (seperti dslr-camera)
+                    $q->whereHas('category', function($sq) use ($categoryParam) {
+                        $sq->where('slug', $categoryParam);
+                    });
+                }
+            });
         }
 
         // Filter status
